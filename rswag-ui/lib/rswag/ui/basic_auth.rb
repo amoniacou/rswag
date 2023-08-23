@@ -9,22 +9,30 @@ module Rswag
     #
     class BasicAuth < ::Rack::Auth::Basic
       def call(env)
-        return @app.call(env) unless env_matching_path(env)
+        return @app.call(env) unless not_rswag_basic_auth(env)
 
         super(env)
       end
 
       private
 
+      def not_rswag_basic_auth(env)
+        !env_matching_path(env) || white_ips_access(env)
+      end
+
       def env_matching_path(env)
-        path = base_path(env['PATH_INFO'])
-        Rswag::Ui.config.config_object[:urls].find do |endpoint|
-          base_path(endpoint[:url]) == path
+        path = URI.parse(env['PATH_INFO']).path.to_s
+        path.match?(Rswag::Ui::Engine.routes.find_script_name({}))
+      end
+
+      def white_ips_access(env)
+        white_ips.any? do |block|
+          IPAddr.new(block).include?(IPAddr.new(env['action_dispatch.remote_ip'].to_s))
         end
       end
 
-      def base_path(url)
-        url.downcase.split('/')[1]
+      def white_ips
+        ENV.fetch('API_DOCS_WHITE_IPS', '').split(',').map(&:strip)
       end
     end
   end
