@@ -9,7 +9,7 @@ module Rswag
     #
     class BasicAuth < ::Rack::Auth::Basic
       def call(env)
-        return @app.call(env) unless not_rswag_basic_auth(env)
+        return @app.call(env) if not_rswag_basic_auth(env)
 
         super(env)
       end
